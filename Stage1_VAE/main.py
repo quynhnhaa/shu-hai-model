@@ -107,6 +107,8 @@ config["image_shape"] = image_shape
 config["activation"] = activation
 config["input_shape"] = tuple([config["batch_size"]] + [config["nb_channels"]] + list(config["image_shape"]))
 config["result_path"] = os.path.join(config["base_path"], "models", save_folder)   # save models and status files
+if not os.path.exists(config["result_path"]):
+    os.makedirs(config["result_path"])
 # config["saved_model_file"] = '/Users/missshihonghowru/Desktop/nyu master/brats-challenge/pth-models_status/model.pth'
 config["saved_model_file"] = config["result_path"] + pth_name
 config["overwrite"] = True

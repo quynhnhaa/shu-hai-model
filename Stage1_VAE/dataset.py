@@ -218,9 +218,9 @@ class BratsDataset(Dataset):
 
     def __getitem__(self, index):
         patient = self.patient_names[index]
-        self.file_path = os.path.join(self.data_path, 'npy', patient + ".npy")
+        self.file_path = os.path.join(self.data_path,  patient + ".npy")
         if self.phase == "test":
-            self.file_path = os.path.join(self.test_path, 'npy', patient + ".npy")
+            self.file_path = os.path.join(self.test_path,  patient + ".npy")
         imgs_npy = np.load(self.file_path)
 
         if self.phase == "train":

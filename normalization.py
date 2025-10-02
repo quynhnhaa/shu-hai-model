@@ -145,7 +145,7 @@ if __name__ == "__main__":
 
     # Set data path based on year
     if args.year == 2020:
-        data_file_path = "data/MICCAI_BraTS2020_TrainingData"
+        data_file_path = "/kaggle/input/data-npy"
     elif args.year == 2018:
         data_file_path = "data/MICCAI_BraTS_2018_Data_Training"
     elif args.year == 202001:

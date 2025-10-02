@@ -77,55 +77,72 @@ def random_mirror_flip(imgs_array, prob=0.5):
     return imgs_array
 
 
-def random_crop(imgs_array, crop_size=(128, 192, 160), lower_limit=(0, 32, 40)):
+def random_crop(imgs_array, crop_size):
     """
-    crop the image ((155, 240, 240) for brats data) into the crop_size
-    the random area is now limited at (0:155, 32:224, 40:200), by default
+    Pad and crop the image to the crop_size
     :param imgs_array:
-    :param crop_size:
+    :param crop_size: tuple of (D, H, W)
     :return:
     """
     orig_shape = np.array(imgs_array.shape[1:])
     crop_shape = np.array(crop_size)
-    # ranges = np.array(orig_shape - crop_shape, dtype=np.uint8)
-    # lower_limits = np.random.randint(np.array(ranges))
-    lower_limit_z = np.random.randint(lower_limit[0], 155 - crop_size[0])
-    if crop_size[1] < 192:
-        lower_limit_y = np.random.randint(lower_limit[1], 224 - crop_size[1])
-    else:
-        lower_limit_y = np.random.randint(0, 240 - crop_size[1])
-    if crop_size[2] < 160:
-        lower_limit_x = np.random.randint(lower_limit[2], 200 - crop_size[2])
-    else:
-        lower_limit_x = np.random.randint(0, 240 - crop_size[2])
-    lower_limits = np.array((lower_limit_z, lower_limit_y, lower_limit_x))
-    upper_limits = lower_limits + crop_shape
-    imgs_array = imgs_array[:, lower_limits[0]: upper_limits[0],
-                 lower_limits[1]: upper_limits[1], lower_limits[2]: upper_limits[2]]
-    return imgs_array
+
+    # Pad if original shape is smaller than crop shape
+    padding = []
+    # Don't pad channel dimension
+    padding.append((0, 0))
+    for i in range(3):
+        if orig_shape[i] < crop_shape[i]:
+            p = crop_shape[i] - orig_shape[i]
+            padding.append((p // 2, p - (p // 2)))
+        else:
+            padding.append((0, 0))
+
+    imgs_array = np.pad(imgs_array, padding, mode='constant', constant_values=0)
+    padded_shape = np.array(imgs_array.shape[1:])
+
+    # Perform random crop
+    ranges = padded_shape - crop_shape
+    lower_limits = [np.random.randint(r + 1) for r in ranges]
+
+    upper_limits = np.array(lower_limits) + crop_shape
+
+    return imgs_array[:, lower_limits[0]:upper_limits[0],
+                      lower_limits[1]:upper_limits[1],
+                      lower_limits[2]:upper_limits[2]]
 
 
-def validation_time_crop(imgs_array, crop_size=(128, 192, 160)):
+def center_crop(imgs_array, crop_size):
     """
-    crop the image ((155, 240, 240) for brats data) into the crop_size
+    Pad and center-crop the image to the crop_size
     :param imgs_array:
-    :param crop_size:
+    :param crop_size: tuple of (D, H, W)
     :return:
     """
     orig_shape = np.array(imgs_array.shape[1:])
     crop_shape = np.array(crop_size)
-    lower_limit_z = np.random.randint(orig_shape[0] - crop_size[0])
-    center_y = 128
-    center_x = 120
-    lower_limit_y = center_y - crop_size[-2] // 2  # (128, 160, 128)  (?, 48, 56)
-    lower_limit_x = center_x - crop_size[-1] // 2  # (128, 192, 160)  (?, 32, 40)
-    lower_limits = np.array((lower_limit_z, lower_limit_y, lower_limit_x))
 
+    # Pad if original shape is smaller than crop shape
+    padding = []
+    padding.append((0, 0)) # Channel dim
+    for i in range(3):
+        if orig_shape[i] < crop_shape[i]:
+            p = crop_shape[i] - orig_shape[i]
+            padding.append((p // 2, p - (p // 2)))
+        else:
+            padding.append((0, 0))
+
+    imgs_array = np.pad(imgs_array, padding, mode='constant', constant_values=0)
+    padded_shape = np.array(imgs_array.shape[1:])
+
+    # Perform center crop
+    center = padded_shape // 2
+    lower_limits = center - crop_shape // 2
     upper_limits = lower_limits + crop_shape
 
-    imgs_array = imgs_array[:, lower_limits[0]: upper_limits[0],
-                 lower_limits[1]: upper_limits[1], lower_limits[2]: upper_limits[2]]
-    return imgs_array
+    return imgs_array[:, lower_limits[0]:upper_limits[0],
+                      lower_limits[1]:upper_limits[1],
+                      lower_limits[2]:upper_limits[2]]
 
 
 def test_time_crop(imgs_array, crop_size=(144, 192, 160)):
@@ -223,28 +240,33 @@ class BratsDataset(Dataset):
             self.file_path = os.path.join(self.test_path, 'npy', patient + ".npy")
         imgs_npy = np.load(self.file_path)
 
+        # Reorder shape from config (H, W, D) to data order (D, H, W)
+        h, w, d = self.input_shape[2:]
+        target_crop_shape = (d, h, w)
+
         if self.phase == "train":
             nonzero_masks = [i != 0 for i in imgs_npy[:-1]]
             brain_mask = np.zeros(imgs_npy.shape[1:], dtype=bool)
             for chl in range(len(nonzero_masks)):
                 brain_mask = brain_mask | nonzero_masks[chl]  # (155, 240, 240)
-            # data augmentation
+            
             cur_image_with_label = imgs_npy.copy()
             cur_image = cur_image_with_label[:-1]
+            
+            # data augmentation
             if self.intensity_shift:
                 cur_image = random_intensity_shift(cur_image, brain_mask)
             if self.scale:
                 cur_image = random_scale(cur_image, brain_mask)
 
             cur_image_with_label[:-1] = cur_image
-            cur_image_with_label = random_crop(cur_image_with_label, crop_size=self.input_shape[2:])
+            cur_image_with_label = random_crop(cur_image_with_label, crop_size=target_crop_shape)
 
             if self.flip:  # flip should be performed with labels
                 cur_image_with_label = random_mirror_flip(cur_image_with_label)
 
         elif self.phase == "validate":
-            # cur_image_with_label = validation_time_crop(imgs_npy)
-            cur_image_with_label = validation_time_crop(imgs_npy, crop_size=self.input_shape[2:])
+            cur_image_with_label = center_crop(imgs_npy, crop_size=target_crop_shape)
 
         elif self.phase == "evaluation":
             cur_image_with_label = imgs_npy.copy()
@@ -264,12 +286,7 @@ class BratsDataset(Dataset):
             if self.config["predict_from_train_data"]:
                 imgs_npy = imgs_npy[:-1]
             imgs_npy = test_time_flip(imgs_npy, self.tta_idx)
-            # np.save("../test_time_crop/{}.npy".format(str(index)), imgs_npy)
-            # only use when doing inference for training-data
-            # imgs_npy = imgs_npy[:4, :, :, :]
             return np.array(imgs_npy)
-
-    # np.array() solve the problem of "ValueError: some of the strides of a given numpy array are negative"
 
     def __len__(self):
         return len(self.patient_names)

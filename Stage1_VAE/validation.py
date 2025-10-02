@@ -43,7 +43,7 @@ def val_epoch(epoch, data_set, model, criterion, optimizer, opt, logger):
                 outputs = model(inputs)
                 loss = criterion(outputs, targets)
 
-        acc, sum_ = calculate_accuracy(outputs.cpu(), targets.cpu())
+        acc = calculate_accuracy(outputs.cpu(), targets.cpu())
 
         losses.update(loss.cpu(), inputs.size(0))
         WT_dice.update(acc["dice_wt"], inputs.size(0))

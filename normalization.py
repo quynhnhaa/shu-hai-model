@@ -10,12 +10,13 @@ import argparse
 from Stage2_AttVAE.config import config
 
 
-
 def init_args():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--data_path', type=str, help='The data path')
     parser.add_argument('-y', '--year', type=int, help='s', default=2020)
+    parser.add_argument('--start', type=int, default=0, help='Start index of patients to process')
+    parser.add_argument('--end', type=int, default=None, help='End index of patients to process')
 
     return parser.parse_args()
 
@@ -121,7 +122,7 @@ def load_and_preprocess_val(case, patient_name, output_folder):
         brain_mask = brain_mask | nonzero_masks[i]  # 1488885;  # 1490852;  # 1492561;  #1495212
 
     # now normalize each modality with its mean and standard deviation (computed within the brain mask)
-    for i in range(len(imgs_npy)):   # 158
+    for i in range(len(imgs_npy)):
         mean = imgs_npy[i][brain_mask].mean()
         std = imgs_npy[i][brain_mask].std()
         imgs_npy[i] = (imgs_npy[i] - mean) / (std + 1e-8)
@@ -141,63 +142,87 @@ def load_and_preprocess_val(case, patient_name, output_folder):
 if __name__ == "__main__":
 
     args = init_args()
-    if args.year == 2018:
 
-        data_file_path = "data/MICCAI_BraTS_2018_Data_Training"
-        npy_normalized_folder = join(data_file_path, "npy")
-        list_of_lists = get_list_of_files(data_file_path)
-        patient_names = [i[0].split("/")[-2] for i in list_of_lists]
-        # load_and_preprocess(HGG, patient_names, data_file_path)
-        p = Pool(processes=8)   #num_threads_for_brats_example
-        t0 = time.time()
-        print("job starts")
-        p.starmap(load_and_preprocess, zip(list_of_lists, patient_names, [npy_normalized_folder] * len(list_of_lists)))
-        print("finished; costs {}s".format(time.time() - t0))
-        p.close()
-        p.join()
-
+    # Set data path based on year
     if args.year == 2020:
+        data_file_path = "data/MICCAI_BraTS2020_TrainingData"
+    elif args.year == 2018:
+        data_file_path = "data/MICCAI_BraTS_2018_Data_Training"
+    elif args.year == 202001:
+        data_file_path = "data/MICCAI_BraTS2020_ValidationData"
+    elif args.year == 202002:
+        data_file_path = "data/MICCAI_BraTS2020_TestingData"
+    else:
+        # Fallback to allow custom path
+        data_file_path = args.data_path if args.data_path else "."
 
-        # use this code block to preprocess the Brats 2020 data
-        args = init_args()
-        data_file_path = "/kaggle/input/data-npy"
-        npy_normalized_folder = join('data/MICCAI_BraTS2020_TrainingData', "npy")
+    npy_normalized_folder = join('/kaggle/working/shu-hai-model/data/MICCAI_BraTS2020_TrainingData', "npy")
+    
+    # Determine patient list
+    patients = []
+    if args.year == 2018:
+        # For 2018, patient names are subfolders in HGG/LGG
+        hgg_patients = subfolders(join(data_file_path, 'HGG'), join=False)
+        lgg_patients = subfolders(join(data_file_path, 'LGG'), join=False)
+        patients = hgg_patients + lgg_patients
+    elif args.year == 2020:
         mapping_file_path = join(data_file_path, "name_mapping.csv")
         name_mapping = pd.read_csv(mapping_file_path)
         HGG = name_mapping.loc[name_mapping.Grade == "HGG", "BraTS_2020_subject_ID"].tolist()
         LGG = name_mapping.loc[name_mapping.Grade == "LGG", "BraTS_2020_subject_ID"].tolist()
         patients = HGG + LGG
-        list_of_lists = get_list_of_files_2020(data_file_path, patients)
-        # load_and_preprocess(HGG, patient_names, data_file_path)
-        p = Pool(processes=8)   #num_threads_for_brats_example
-        t0 = time.time()
-        print("job starts")
-        p.starmap(load_and_preprocess, zip(list_of_lists, patients, [npy_normalized_folder] * len(list_of_lists)))
-        print("finished; costs {}s".format(time.time() - t0))
-        p.close()
-        p.join()
-
-    if args.year == 202001 or args.year == 202002:
-
-        # use this code block to preprocess the Brats 2020 data
-        args = init_args()
-        # data_file_path = args.data_path
-        if args.year == 202001:
-            data_file_path = "data/MICCAI_BraTS2020_ValidationData"
-            mapping_file_path = join(data_file_path, "name_mapping_validation_data.csv")
-        if args.year == 202002:
-            data_file_path = "data/MICCAI_BraTS2020_TestingData"
-            # data_file_path = os.path.join(config["base_path"], "data","MICCAI_BraTS2020_TestingData")
-            mapping_file_path = join(data_file_path, "survival_evaluation.csv")
-        npy_normalized_folder = join(data_file_path, "npy")
+    elif args.year == 202001:
+        mapping_file_path = join(data_file_path, "name_mapping_validation_data.csv")
         name_mapping = pd.read_csv(mapping_file_path)
         patients = name_mapping["BraTS20ID"].tolist()
-        list_of_lists = get_list_of_files_2020(data_file_path, patients, mode="validation")
-        # load_and_preprocess(HGG, patient_names, data_file_path)
-        p = Pool(processes=8)   #num_threads_for_brats_example
+    elif args.year == 202002:
+        mapping_file_path = join(data_file_path, "survival_evaluation.csv")
+        name_mapping = pd.read_csv(mapping_file_path)
+        patients = name_mapping["BraTS20ID"].tolist()
+
+    # Slice patient list
+    if args.end is not None:
+        print(f"Processing patients from index {args.start} to {args.end}.")
+        patients_to_process = patients[args.start:args.end]
+    else:
+        print(f"Processing patients from index {args.start} to the end.")
+        patients_to_process = patients[args.start:]
+    
+    print(f"Found {len(patients)} total patients, processing {len(patients_to_process)} patients.")
+
+    # Get full file paths for the selected patients
+    list_of_lists = []
+    if args.year == 2018:
+        # The get_list_of_files function gets all files, so we need to re-implement the logic here
+        # to only get the files for the selected patients.
+        for p in patients_to_process:
+            glioma_type = 'HGG' if p in hgg_patients else 'LGG'
+            patient_directory = join(data_file_path, glioma_type, p)
+            t1_file = join(patient_directory, p + "_t1.nii")
+            t1c_file = join(patient_directory, p + "_t1ce.nii")
+            t2_file = join(patient_directory, p + "_t2.nii")
+            flair_file = join(patient_directory, p + "_flair.nii")
+            seg_file = join(patient_directory, p + "_seg.nii")
+            this_case = [t1_file, t1c_file, t2_file, flair_file, seg_file]
+            assert all((isfile(i) for i in this_case)), f"Missing files for patient {p}"
+            list_of_lists.append(this_case)
+    elif args.year in [2020, 202001, 202002]:
+        mode = "validation" if args.year in [202001, 202002] else "training"
+        list_of_lists = get_list_of_files_2020(data_file_path, patients_to_process, mode=mode)
+
+    # Start multiprocessing
+    if patients_to_process:
+        p = Pool(processes=8)
         t0 = time.time()
-        print("job starts")
-        p.starmap(load_and_preprocess_val, zip(list_of_lists, patients, [npy_normalized_folder] * len(list_of_lists)))
-        print("finished; costs {}s".format(time.time() - t0))
+        print("Job starts for preprocessing...")
+        
+        if args.year in [202001, 202002]:
+             p.starmap(load_and_preprocess_val, zip(list_of_lists, patients_to_process, [npy_normalized_folder] * len(patients_to_process)))
+        else:
+             p.starmap(load_and_preprocess, zip(list_of_lists, patients_to_process, [npy_normalized_folder] * len(patients_to_process)))
+
+        print("Finished; costs {}s".format(time.time() - t0))
         p.close()
         p.join()
+    else:
+        print("No patients to process.")

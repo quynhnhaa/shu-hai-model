@@ -1,3 +1,4 @@
 *.DS_Store
 __pycache__
 brats2020-training-data
+data_npy

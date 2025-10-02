@@ -27,11 +27,11 @@ def get_list_of_files(base_dir):
         patients = subfolders(current_directory, join=False)
         for p in patients:
             patient_directory = join(current_directory, p)
-            t1_file = join(patient_directory, p + "_t1.nii.gz")
-            t1c_file = join(patient_directory, p + "_t1ce.nii.gz")
-            t2_file = join(patient_directory, p + "_t2.nii.gz")
+            t1_file = join(patient_directory, p + "_t1.nii")
+            t1c_file = join(patient_directory, p + "_t1ce.nii")
+            t2_file = join(patient_directory, p + "_t2.nii")
             flair_file = join(patient_directory, p + "_flair.nii")
-            seg_file = join(patient_directory, p + "_seg.nii.gz")
+            seg_file = join(patient_directory, p + "_seg.nii")
             this_case = [t1_file, t1c_file, t2_file, flair_file, seg_file]
             assert all((isfile(i) for i in this_case)), "some file is missing for patient %s; make sure the following " \
                                                         "files are there: %s" % (p, str(this_case))
@@ -47,12 +47,12 @@ def get_list_of_files_2020(current_directory, patients, mode="training"):
     # patients = subfolders(current_directory, join=False)
     for p in patients:
         patient_directory = join(current_directory, p)
-        t1_file = join(patient_directory, p + "_t1.nii.gz")
-        t1c_file = join(patient_directory, p + "_t1ce.nii.gz")
-        t2_file = join(patient_directory, p + "_t2.nii.gz")
-        flair_file = join(patient_directory, p + "_flair.nii.gz")
+        t1_file = join(patient_directory, p + "_t1.nii")
+        t1c_file = join(patient_directory, p + "_t1ce.nii")
+        t2_file = join(patient_directory, p + "_t2.nii")
+        flair_file = join(patient_directory, p + "_flair.nii")
         if mode == "training":
-            seg_file = join(patient_directory, p + "_seg.nii.gz")
+            seg_file = join(patient_directory, p + "_seg.nii")
             this_case = [t1_file, t1c_file, t2_file, flair_file, seg_file]
         else:
             this_case = [t1_file, t1c_file, t2_file, flair_file]

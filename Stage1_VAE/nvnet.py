@@ -275,7 +275,7 @@ class NvNet(nn.Module):
         
         # Variational Auto-Encoder
         if self.config["VAE_enable"]:
-            self.dense_features = (self.input_shape[2]//16, self.input_shape[3]//16, self.input_shape[4]//16)  # 8, 12, 12
+            self.dense_features = (self.input_shape[4]//16, self.input_shape[2]//16, self.input_shape[3]//16)  # (D, H, W)
             self.vae = VAE(256, outChans=self.inChans, dense_features=self.dense_features)
 
     def forward(self, x):

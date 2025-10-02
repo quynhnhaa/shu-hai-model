@@ -30,7 +30,7 @@ def get_list_of_files(base_dir):
             t1_file = join(patient_directory, p + "_t1.nii.gz")
             t1c_file = join(patient_directory, p + "_t1ce.nii.gz")
             t2_file = join(patient_directory, p + "_t2.nii.gz")
-            flair_file = join(patient_directory, p + "_flair.nii.gz")
+            flair_file = join(patient_directory, p + "_flair.nii")
             seg_file = join(patient_directory, p + "_seg.nii.gz")
             this_case = [t1_file, t1c_file, t2_file, flair_file, seg_file]
             assert all((isfile(i) for i in this_case)), "some file is missing for patient %s; make sure the following " \

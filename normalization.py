@@ -161,7 +161,7 @@ if __name__ == "__main__":
         # use this code block to preprocess the Brats 2020 data
         args = init_args()
         data_file_path = "/kaggle/input/data-npy"
-        npy_normalized_folder = join(data_file_path, "npy")
+        npy_normalized_folder = join('data/MICCAI_BraTS_2020_Data_Training', "npy")
         mapping_file_path = join(data_file_path, "name_mapping.csv")
         name_mapping = pd.read_csv(mapping_file_path)
         HGG = name_mapping.loc[name_mapping.Grade == "HGG", "BraTS_2020_subject_ID"].tolist()

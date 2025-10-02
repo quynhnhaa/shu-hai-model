@@ -2,3 +2,8 @@
 __pycache__
 brats2020-training-data
 data_npy
+runs/
+models_stage1/
+count_parameters.py
+*.pth
+*.h5

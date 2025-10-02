@@ -145,10 +145,10 @@ def main():
     else:
         loss_function = SoftDiceLoss(new_loss=config["new_SoftDiceLoss"])
 
-    with open('valid_list.txt', 'r') as f:
+    with open('../valid_list.txt', 'r') as f:
         val_list = f.read().splitlines()
-    # with open('train_list.txt', 'r') as f:
-    with open('train_list.txt', 'r') as f:
+    
+    with open('../train_list.txt', 'r') as f:
         tr_list = f.read().splitlines()
 
     config["training_patients"] = tr_list

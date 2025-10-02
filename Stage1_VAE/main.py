@@ -110,7 +110,7 @@ config["result_path"] = os.path.join(config["base_path"], "models", save_folder)
 if not os.path.exists(config["result_path"]):
     os.makedirs(config["result_path"])
 # config["saved_model_file"] = '/Users/missshihonghowru/Desktop/nyu master/brats-challenge/pth-models_status/model.pth'
-config["saved_model_file"] = config["result_path"] + pth_name
+config["saved_model_file"] = os.path.join(config["result_path"], pth_name)
 config["overwrite"] = True
 if pth_name:
     config["overwrite"] = False

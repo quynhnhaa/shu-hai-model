@@ -15,7 +15,7 @@ config["focal_alpha"] = 0.99
 config["focal_gamma"] = 2
 # config["data_path"] = config["base_path"] + "data/MICCAI_BraTS_2018_Data_Training"
 # config["data_path"] = config["base_path"] + "data/MICCAI_BraTS2020_TrainingData"
-config["data_path"] = '/kaggle/input/data_npy/'
+config["data_path"] = '/kaggle/input/data-npy/'
 config["training_patients"] = []
 config["validation_patients"] = []
 # augmentation

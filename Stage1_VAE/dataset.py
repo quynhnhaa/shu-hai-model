@@ -145,9 +145,9 @@ def center_crop(imgs_array, crop_size):
                       lower_limits[2]:upper_limits[2]]
 
 
-def test_time_crop(imgs_array, crop_size=(144, 192, 160)):
+def test_time_crop(imgs_array, crop_size):
     """
-    crop the test image around the center; default crop_zise change from (128, 192, 160) to (144, 192, 160)
+    crop the test image around the center
     :param imgs_array:
     :param crop_size:
     :return: image with the size of crop_size
@@ -155,9 +155,8 @@ def test_time_crop(imgs_array, crop_size=(144, 192, 160)):
     orig_shape = np.array(imgs_array.shape[1:])
     crop_shape = np.array(crop_size)
     center = orig_shape // 2
-    lower_limits = center - crop_shape // 2  # (13, 24, 40) (5, 24, 40)
-    upper_limits = center + crop_shape // 2  # (141, 216, 200) (149, 216, 200）
-    # upper_limits = lower_limits + crop_shape
+    lower_limits = center - crop_shape // 2
+    upper_limits = lower_limits + crop_shape
     imgs_array = imgs_array[:, lower_limits[0]: upper_limits[0],
                  lower_limits[1]: upper_limits[1], lower_limits[2]: upper_limits[2]]
     return imgs_array
@@ -284,7 +283,7 @@ class BratsDataset(Dataset):
             return np.array(inp_data), np.array(final_label)
 
         elif self.phase == "test":
-            imgs_npy = test_time_crop(imgs_npy)
+            imgs_npy = test_time_crop(imgs_npy, crop_size=target_crop_shape)
             if self.config["predict_from_train_data"]:
                 imgs_npy = imgs_npy[:-1]
             imgs_npy = test_time_flip(imgs_npy, self.tta_idx)

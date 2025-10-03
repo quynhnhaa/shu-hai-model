@@ -33,6 +33,8 @@ def init_args():
     parser.add_argument('-t', '--tta', type=bool, help='Whether to implement test-time augmentation;', default=False)
     parser.add_argument('--model_path', type=str, default=None, help='Full path to the saved pth file')
     parser.add_argument('--output_dir', type=str, default=None, help='Full path to the output directory for predictions')
+    parser.add_argument('--start', type=int, default=0, help='Start index (inclusive) for subsetting combined train+valid list')
+    parser.add_argument('--end', type=int, default=None, help='End index (exclusive) for subsetting combined train+valid list')
 
 
     return parser.parse_args()
@@ -239,11 +241,25 @@ if __name__ == "__main__":
         name_mapping = read_csv(mapping_file_path)
         val_list = name_mapping["BraTS20ID"].tolist()
     else:
-        if config["predict_from_train_data"]:
-            mapping_file_path = os.path.join(config["test_path"], "name_mapping.csv")
-        else:
-            mapping_file_path = os.path.join(config["test_path"], "name_mapping_validation_data.csv")
+        # Build prediction list from train_list.txt and valid_list.txt for Stage2 input generation
+        with open('train_list.txt', 'r') as f:
+            tr_list = f.read().splitlines()
+        with open('valid_list.txt', 'r') as f:
+            val_names = f.read().splitlines()
+        # Deduplicate while preserving order
+        combined = tr_list + val_names
+        val_list = []
+        for x in combined:
+            if x not in val_list:
+                val_list.append(x)
+        # Still load name_mapping.csv from TrainingData for reference/logging consistency
+        mapping_file_path = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TrainingData", "name_mapping.csv")
         name_mapping = read_csv(mapping_file_path)
-        val_list = name_mapping["BraTS_2020_subject_ID"].tolist()
+        # Apply subsetting by start/end indices to control output size on Kaggle
+        start = args.start if args.start is not None else 0
+        end = args.end if args.end is not None else len(val_list)
+        start = max(0, min(start, len(val_list)))
+        end = max(start, min(end, len(val_list)))
+        val_list = val_list[start:end]
 
     predict(val_list, model)

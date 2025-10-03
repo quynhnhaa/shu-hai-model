@@ -230,6 +230,10 @@ class PatchDataset(Dataset):
         if self.phase == "test":
             self.file_path = os.path.join(self.test_path, patient + ".npy")
         imgs_npy = np.load(self.file_path)
+        # Normalize MRI npy to (C, D, H, W) ordering to match pred_map (3, D, H, W)
+        # Common case: npy saved as (C, H, W, D) with D=155 -> transpose to (C, D, H, W)
+        if imgs_npy.ndim == 4 and imgs_npy.shape[1] != 155 and imgs_npy.shape[-1] == 155:
+            imgs_npy = np.transpose(imgs_npy, (0, 3, 1, 2))
         self.stage1_output_path = "../pred/" + self.map_list[model_idx] + "/"
         file_path_pred_map = os.path.join(self.stage1_output_path, patient + ".nii.gz")
         pred_map = read_stik_to_nparray(file_path_pred_map)

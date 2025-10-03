@@ -236,30 +236,30 @@ if __name__ == "__main__":
 
     model = init_model_from_states(config)
 
-    if config["predict_from_test_data"]:
-        mapping_file_path = os.path.join(config["test_path"], "name_mapping.csv")
-        name_mapping = read_csv(mapping_file_path)
-        val_list = name_mapping["BraTS20ID"].tolist()
-    else:
-        # Build prediction list from train_list.txt and valid_list.txt for Stage2 input generation
-        with open('train_list.txt', 'r') as f:
-            tr_list = f.read().splitlines()
-        with open('valid_list.txt', 'r') as f:
-            val_names = f.read().splitlines()
-        # Deduplicate while preserving order
-        combined = tr_list + val_names
-        val_list = []
-        for x in combined:
-            if x not in val_list:
-                val_list.append(x)
-        # Still load name_mapping.csv from TrainingData for reference/logging consistency
-        mapping_file_path = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TrainingData", "name_mapping.csv")
-        name_mapping = read_csv(mapping_file_path)
-        # Apply subsetting by start/end indices to control output size on Kaggle
-        start = args.start if args.start is not None else 0
-        end = args.end if args.end is not None else len(val_list)
-        start = max(0, min(start, len(val_list)))
-        end = max(start, min(end, len(val_list)))
-        val_list = val_list[start:end]
+    # if config["predict_from_test_data"]:
+    #     mapping_file_path = os.path.join(config["test_path"], "name_mapping.csv")
+    #     name_mapping = read_csv(mapping_file_path)
+    #     val_list = name_mapping["BraTS20ID"].tolist()
+    # else:
+    # Build prediction list from train_list.txt and valid_list.txt for Stage2 input generation
+    with open('../train_list.txt', 'r') as f:
+        tr_list = f.read().splitlines()
+    with open('../valid_list.txt', 'r') as f:
+        val_names = f.read().splitlines()
+    # Deduplicate while preserving order
+    combined = tr_list + val_names
+    val_list = []
+    for x in combined:
+        if x not in val_list:
+            val_list.append(x)
+    # Still load name_mapping.csv from TrainingData for reference/logging consistency
+    mapping_file_path = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TrainingData", "name_mapping.csv")
+    name_mapping = read_csv(mapping_file_path)
+    # Apply subsetting by start/end indices to control output size on Kaggle
+    start = args.start if args.start is not None else 0
+    end = args.end if args.end is not None else len(val_list)
+    start = max(0, min(start, len(val_list)))
+    end = max(start, min(end, len(val_list)))
+    val_list = val_list[start:end]
 
     predict(val_list, model)

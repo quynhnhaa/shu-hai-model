@@ -237,7 +237,7 @@ if __name__ == "__main__":
     model = init_model_from_states(config)
 
     if config["predict_from_test_data"]:
-        mapping_file_path = os.path.join(config["test_path"], "survival_evaluation.csv")
+        mapping_file_path = os.path.join(config["test_path"], "name_mapping.csv")
         name_mapping = read_csv(mapping_file_path)
         val_list = name_mapping["BraTS20ID"].tolist()
     else:

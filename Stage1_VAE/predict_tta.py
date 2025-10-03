@@ -219,7 +219,7 @@ def predict(name_list, model):
         preds_array = combine_labels_predicting(preds_array)
 
         # affine = nib.load(os.path.join(config["test_path"], patient_filename, patient_filename + '_t1.nii.gz')).affine
-        affine = nib.load('/kaggle/input/data-npy', patient_filename, patient_filename + '_t1.nii.gz')).affine
+        affine = nib.load(os.path.join('/kaggle/input/data-npy', patient_filename, patient_filename + '_t1.nii.gz')).affine
         output_image = nib.Nifti1Image(preds_array, affine)
         output_image.to_filename(os.path.join(config["prediction_dir"], patient_filename + '.nii.gz'))
         propbsMap_dir = config["prediction_dir"] + "_probabilityMap"

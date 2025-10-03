@@ -162,7 +162,7 @@ def dim_recovery(img_array, orig_shape=(155, 240, 240)):
     crop_shape = np.array(img_array.shape[-3:])
     center = np.array(orig_shape) // 2
     lower_limits = center - crop_shape // 2
-    upper_limits = center + crop_shape // 2
+    upper_limits = lower_limits + crop_shape
     if len(img_array.shape) == 5:
         bs, num_labels = img_array.shape[:2]
         res_array = np.zeros((bs, num_labels) + orig_shape)

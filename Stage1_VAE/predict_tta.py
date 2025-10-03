@@ -79,14 +79,11 @@ else:
 config["load_from_data_parallel"] = True  # Load model trained on multi-gpu to predict on single gpu.
 config["predict_from_train_data"] = args.train
 config["predict_from_test_data"] = args.test
-# config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_ValidationData")
-config["test_path"] = os.path.join('kaggle', "input", "data-npy")
+config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_ValidationData")
 if config["predict_from_test_data"]:
-    # config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TestingData")
-    config["test_path"] = os.path.join('kaggle', "input", "data-npy")
+    config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TestingData")
 if config["predict_from_train_data"]:
-    # config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TrainingData")
-    config["test_path"] = os.path.join('kaggle', "input", "data-npy")
+    config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TrainingData")
 config["input_shape"] = tuple([config["batch_size"]] + [config["nb_channels"]] + list(config["image_shape"]))
 config["VAE_enable"] = False
 config["seg_label"] = seg_label                             # used for data generation
@@ -221,7 +218,8 @@ def predict(name_list, model):
         preds_array = preds_array.swapaxes(-3, -1)  # convert channel first (SimpleTIK) to channel last (Nibabel)
         preds_array = combine_labels_predicting(preds_array)
 
-        affine = nib.load(os.path.join(config["test_path"], patient_filename, patient_filename + '_t1.nii.gz')).affine
+        # affine = nib.load(os.path.join(config["test_path"], patient_filename, patient_filename + '_t1.nii.gz')).affine
+        affine = nib.load('/kaggle/input/data-npy', patient_filename, patient_filename + '_t1.nii.gz')).affine
         output_image = nib.Nifti1Image(preds_array, affine)
         output_image.to_filename(os.path.join(config["prediction_dir"], patient_filename + '.nii.gz'))
         propbsMap_dir = config["prediction_dir"] + "_probabilityMap"

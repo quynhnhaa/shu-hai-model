@@ -52,12 +52,12 @@ def init_args():
 
 
 ###  ================== change the first-stage models for training ================= ###
-model_list = ["nml4_lr_loss_crop_[214]_254_0.1633_0.9120_0.8496_train"]
-model_list.append("nml4_lr_loss_crop_[214]_294_0.1639_0.9113_0.8486_train")
-model_list.append("nml4_lr_loss_crop_[214]_v2_165_0.1616_0.9135_0.8516_train")
-model_list.append("nml4_lr_loss_crop_[214]_v2_244_0.1665_0.9112_0.8509_train")
-model_list.append("nml4_lr_loss_crop_[214]_v2_271_0.1667_0.9111_0.8507_train")
-model_list.append("nml4_lr_loss_crop_[214]_v2_289_0.1666_0.9112_0.8508_train")
+model_list = ["stage1_epoch_40"]
+model_list.append("stage1_epoch_41")
+model_list.append("stage1_epoch_44")
+model_list.append("stage1_epoch_45")
+model_list.append("stage1_epoch_49")
+model_list.append("stage1_epoch_51")
 ###  =============================================================================== ###
 
 
@@ -134,9 +134,9 @@ def main():
     else:
         loss_function = SoftDiceLoss(combine=config["combine"])
 
-    with open('valid_list.txt', 'r') as f:
+    with open('../valid_list.txt', 'r') as f:
         val_list = f.read().splitlines()
-    with open('train_list.txt', 'r') as f:
+    with open('../train_list.txt', 'r') as f:
         tr_list = f.read().splitlines()
 
     config["training_patients"] = tr_list

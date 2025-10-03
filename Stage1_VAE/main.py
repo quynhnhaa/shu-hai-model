@@ -161,14 +161,28 @@ def main():
     train_logger = Logger(model_name=config["model_name"] + '.h5',
                           header=['epoch', 'loss', 'wt-dice', 'tc-dice', 'et-dice', 'lr'])
 
+    max_val_WT_dice = 0.  # Initialize here, but will be overwritten if resuming
+    max_val_AVG_dice = 0. # Initialize here, but will be overwritten if resuming
+
     if not config["overwrite"] and config["saved_model_file"] is not None:
         if not os.path.exists(config["saved_model_file"]):
             raise Exception("Invalid model path!")
-        model, start_epoch, optimizer_resume = load_old_model(model, optimizer, saved_model_path=config["saved_model_file"])
-        parameters = model.parameters()
-        optimizer = optim.Adam(parameters,
-                               lr=optimizer_resume.param_groups[0]["lr"],
-                               weight_decay=optimizer_resume.param_groups[0]["weight_decay"])
+        
+        print("Resuming training from checkpoint: %s" % config["saved_model_file"])
+        checkpoint = torch.load(config["saved_model_file"], map_location='cpu')
+        
+        # Load model and optimizer states
+        model.load_state_dict(checkpoint['state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        
+        # Set the start epoch
+        start_epoch = checkpoint['epoch'] + 1
+        
+        # Load best dice scores, with a fallback to 0.0 for older checkpoints
+        max_val_WT_dice = checkpoint.get('max_val_WT_dice', 0.)
+        max_val_AVG_dice = checkpoint.get('max_val_AVG_dice', 0.)
+        
+        print("Resumed from epoch %d with best WT_dice: %.4f and AVG_dice: %.4f" % (checkpoint['epoch'], max_val_WT_dice, max_val_AVG_dice))
 
     if config["cuda_devices"] is not None:
         model = model.cuda()
@@ -182,8 +196,6 @@ def main():
     # scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=config["lr_decay"], patience=config["patience"])
     scheduler = lr_scheduler.LambdaLR(optimizer=optimizer, lr_lambda=poly_lr_scheduler)  # can't restore lr correctly
 
-    max_val_WT_dice = 0.
-    max_val_AVG_dice = 0.
     for i in range(start_epoch, config["epochs"]):
         train_epoch(epoch=i, 
                     data_set=training_data, 
@@ -221,12 +233,30 @@ def main():
                 'epoch': i,
                 'state_dict': state_dict,
                 'optimizer': optimizer.state_dict(),
+                'max_val_WT_dice': max_val_WT_dice,
+                'max_val_AVG_dice': max_val_AVG_dice,
             }
             torch.save(states, save_states_path)
             save_model_path = os.path.join(save_dir, "best_model.pth")
             if os.path.exists(save_model_path):
                 os.system("rm "+save_model_path)
             torch.save(model, save_model_path)
+
+        # Save latest checkpoint at the end of each epoch for resuming
+        latest_states_path = os.path.join(config["result_path"], 'latest_checkpoint.pth')
+        if config["cuda_devices"] is not None:
+            latest_state_dict = model.module.state_dict()
+        else:
+            latest_state_dict = model.state_dict()
+        latest_states = {
+            'epoch': i,
+            'state_dict': latest_state_dict,
+            'optimizer': optimizer.state_dict(),
+            'max_val_WT_dice': max_val_WT_dice,
+            'max_val_AVG_dice': max_val_AVG_dice,
+        }
+        torch.save(latest_states, latest_states_path)
+
         print("batch {0:d} finished, validation loss:{1:.4f}; WTDice:{2:.4f}; AVGDice:{3:.4f}".format(i, val_loss, WT_dice, AVG_dice))
 
 if __name__ == '__main__':

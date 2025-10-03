@@ -31,6 +31,9 @@ def init_args():
                                                                     'have to be dividable by 16 (H, W, D)',
                         default=[128, 192, 160])
     parser.add_argument('-t', '--tta', type=bool, help='Whether to implement test-time augmentation;', default=False)
+    parser.add_argument('--model_path', type=str, default=None, help='Full path to the saved pth file')
+    parser.add_argument('--output_dir', type=str, default=None, help='Full path to the output directory for predictions')
+
 
     return parser.parse_args()
 
@@ -54,10 +57,25 @@ dice_list = [None, "dice_wt", "dice_tc", "dice_et"]
 seg_label = label_list[seglabel_idx]  # used for data generation
 seg_dice = dice_list[seglabel_idx]  # used for dice calculation
 config["image_shape"] = args.image_shape
-config["checkpoint_file"] = args.checkpoint_file
-config["checkpoint_path"] = os.path.join(config["base_path"], "models", args.save_folder)
-config['saved_model_path'] = os.path.join(config["checkpoint_path"], config["checkpoint_file"])
-config["prediction_dir"] = os.path.join(config["base_path"], "pred", config["checkpoint_file"].split(".pth")[0])
+
+# Logic for model path
+if args.model_path:
+    config['saved_model_path'] = args.model_path
+    # Extract the filename for the prediction directory and other metadata
+    config["checkpoint_file"] = os.path.basename(args.model_path)
+else:
+    # Keep old behavior
+    config["checkpoint_file"] = args.checkpoint_file
+    config["checkpoint_path"] = os.path.join(config["base_path"], "models", args.save_folder)
+    config['saved_model_path'] = os.path.join(config["checkpoint_path"], config["checkpoint_file"])
+
+# Logic for output path
+if args.output_dir:
+    config["prediction_dir"] = args.output_dir
+else:
+    # Keep old behavior
+    config["prediction_dir"] = os.path.join(config["base_path"], "pred", config["checkpoint_file"].split(".pth")[0])
+
 config["load_from_data_parallel"] = True  # Load model trained on multi-gpu to predict on single gpu.
 config["predict_from_train_data"] = args.train
 config["predict_from_test_data"] = args.test

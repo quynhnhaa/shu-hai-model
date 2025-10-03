@@ -246,4 +246,4 @@ if __name__ == "__main__":
         name_mapping = read_csv(mapping_file_path)
         val_list = name_mapping["BraTS_2020_subject_ID"].tolist()
 
-    # predict(val_list, model)
+    predict(val_list, model)

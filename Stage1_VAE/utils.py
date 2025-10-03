@@ -159,42 +159,28 @@ def dim_recovery(img_array, orig_shape=(155, 240, 240)):
     :param orig_shape:
     :return:
     """
-    print(f"DEBUG: img_array.shape = {img_array.shape}")
-    print(f"DEBUG: orig_shape = {orig_shape}")
-    
     crop_shape = np.array(img_array.shape[-3:])
-    print(f"DEBUG: crop_shape = {crop_shape}")
     
     # Calculate center position in original shape
     center = np.array(orig_shape) // 2
-    print(f"DEBUG: center = {center}")
     
     # Calculate where to place the cropped image in the original shape
     lower_limits = center - crop_shape // 2
     upper_limits = lower_limits + crop_shape
     
-    print(f"DEBUG: lower_limits = {lower_limits}")
-    print(f"DEBUG: upper_limits = {upper_limits}")
-    
     # Ensure indices are within bounds
     lower_limits = np.maximum(lower_limits, 0)
     upper_limits = np.minimum(upper_limits, orig_shape)
     
-    print(f"DEBUG: final lower_limits = {lower_limits}")
-    print(f"DEBUG: final upper_limits = {upper_limits}")
-    
     # Calculate actual crop size to fit within bounds
     actual_crop_shape = upper_limits - lower_limits
-    print(f"DEBUG: actual_crop_shape = {actual_crop_shape}")
     
     # Adjust img_array if needed
     if not np.array_equal(actual_crop_shape, crop_shape):
-        print(f"WARNING: Need to adjust crop size from {crop_shape} to {actual_crop_shape}")
         # Crop img_array to fit
         start_idx = (crop_shape - actual_crop_shape) // 2
         end_idx = start_idx + actual_crop_shape
         img_array = img_array[..., start_idx[0]:end_idx[0], start_idx[1]:end_idx[1], start_idx[2]:end_idx[2]]
-        print(f"DEBUG: adjusted img_array.shape = {img_array.shape}")
     if len(img_array.shape) == 5:
         bs, num_labels = img_array.shape[:2]
         res_array = np.zeros((bs, num_labels) + orig_shape)

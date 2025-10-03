@@ -79,11 +79,14 @@ else:
 config["load_from_data_parallel"] = True  # Load model trained on multi-gpu to predict on single gpu.
 config["predict_from_train_data"] = args.train
 config["predict_from_test_data"] = args.test
-config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_ValidationData")
+# config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_ValidationData")
+config["test_path"] = os.path.join('kaggle', "input", "data-npy")
 if config["predict_from_test_data"]:
-    config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TestingData")
+    # config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TestingData")
+    config["test_path"] = os.path.join('kaggle', "input", "data-npy")
 if config["predict_from_train_data"]:
-    config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TrainingData")
+    # config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TrainingData")
+    config["test_path"] = os.path.join('kaggle', "input", "data-npy")
 config["input_shape"] = tuple([config["batch_size"]] + [config["nb_channels"]] + list(config["image_shape"]))
 config["VAE_enable"] = False
 config["seg_label"] = seg_label                             # used for data generation

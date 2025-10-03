@@ -217,8 +217,12 @@ class VDResampling(nn.Module):
         out = self.conv1(out)   # 16*10*12*8
         out = out.view(-1, self.num_flat_features(out))  # flatten
         out_vd = self.dense1(out)
-        distr = out_vd 
-        out = VDraw(out_vd)  # 128
+        # Split into mean and scale, ensure positive std via softplus
+        mu = out_vd[:, :128]
+        std_raw = out_vd[:, 128:]
+        std = F.softplus(std_raw) + 1e-6
+        distr = torch.cat([mu, std], dim=1)
+        out = VDraw(mu, std)  # 128
         out = self.dense2(out)
         out = self.actv2(out)
         out = out.view((-1, 128, self.dense_features[0], self.dense_features[1], self.dense_features[2]))  # flat to conv
@@ -235,9 +239,10 @@ class VDResampling(nn.Module):
             
         return num_features
 
-def VDraw(x):
-    # Generate a Gaussian distribution with the given mean(128-d) and std(128-d)
-    return torch.distributions.Normal(x[:, :128], x[:, 128:]).sample()
+def VDraw(mu, std, eps=1e-6):
+    # Ensure positive std and use reparameterization for backprop
+    std = F.softplus(std) + eps
+    return torch.distributions.Normal(mu, std).rsample()
 
 class VDecoderBlock(nn.Module):
     '''

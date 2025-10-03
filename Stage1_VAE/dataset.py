@@ -234,11 +234,11 @@ class BratsDataset(Dataset):
 
     def __getitem__(self, index):
         patient = self.patient_names[index]
-        self.file_path = os.path.join(self.data_path, patient + ".npy")
-        # self.file_path = os.path.join('/kaggle/input/data-npy2', patient + ".npy")
+        # self.file_path = os.path.join(self.data_path, patient + ".npy")
+        self.file_path = os.path.join('/kaggle/input/data-npy2', patient + ".npy")
         if self.phase == "test":
-            self.file_path = os.path.join(self.test_path, 'npy', patient + ".npy")
-            # self.file_path = os.path.join('/kaggle/input/data-npy2', patient + ".npy")
+            # self.file_path = os.path.join(self.test_path, 'npy', patient + ".npy")
+            self.file_path = os.path.join('/kaggle/input/data-npy2', patient + ".npy")
         imgs_npy = np.load(self.file_path)
 
         # Reorder shape from config (H, W, D) to data order (D, H, W)

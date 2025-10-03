@@ -234,11 +234,11 @@ class BratsDataset(Dataset):
 
     def __getitem__(self, index):
         patient = self.patient_names[index]
-        # self.file_path = os.path.join(self.data_path, patient + ".npy")
-        self.file_path = os.path.join('/kaggle/input/data-npy2', patient + ".npy")
+        self.file_path = os.path.join(self.data_path, patient + ".npy")
+        # self.file_path = os.path.join('/kaggle/input/data-npy2', patient + ".npy")
         if self.phase == "test":
-            # self.file_path = os.path.join(self.test_path, 'npy', patient + ".npy")
-            self.file_path = os.path.join('/kaggle/input/data-npy2', patient + ".npy")
+            self.file_path = os.path.join(self.test_path, 'npy', patient + ".npy")
+            # self.file_path = os.path.join('/kaggle/input/data-npy2', patient + ".npy")
         imgs_npy = np.load(self.file_path)
 
         # Reorder shape from config (H, W, D) to data order (D, H, W)
@@ -283,7 +283,7 @@ class BratsDataset(Dataset):
             return np.array(inp_data), np.array(final_label)
 
         elif self.phase == "test":
-            imgs_npy = test_time_crop(imgs_npy, crop_size=target_crop_shape)
+            imgs_npy = center_crop(imgs_npy, crop_size=target_crop_shape)
             if self.config["predict_from_train_data"]:
                 imgs_npy = imgs_npy[:-1]
             imgs_npy = test_time_flip(imgs_npy, self.tta_idx)

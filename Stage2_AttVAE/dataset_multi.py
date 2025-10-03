@@ -226,9 +226,9 @@ class PatchDataset(Dataset):
         patient_idx = index % len(self.patient_names)
         patient = self.patient_names[patient_idx]
         patch = self.preprocessor.preprocessing(patient)
-        self.file_path = os.path.join(self.data_path, 'npy', patient + ".npy")
+        self.file_path = os.path.join(self.data_path, patient + ".npy")
         if self.phase == "test":
-            self.file_path = os.path.join(self.test_path, 'npy', patient + ".npy")
+            self.file_path = os.path.join(self.test_path, patient + ".npy")
         imgs_npy = np.load(self.file_path)
         self.stage1_output_path = "../pred/" + self.map_list[model_idx] + "/"
         file_path_pred_map = os.path.join(self.stage1_output_path, patient + ".nii.gz")

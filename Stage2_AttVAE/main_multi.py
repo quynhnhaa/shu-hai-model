@@ -213,7 +213,7 @@ def main():
             save_flag = True
 
         if save_flag:
-            save_dir = config["result_path"]
+            save_dir = "/kaggle/working/shu-hai-model/models/saved_pth"
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
             save_states_path = os.path.join(save_dir,
@@ -237,7 +237,7 @@ def main():
                 os.system("rm "+ save_model_path)
             torch.save(model, save_model_path)
         # Always save last checkpoint each epoch for resume capability
-        save_dir = config["result_path"]
+        save_dir = "/kaggle/working/shu-hai-model/models/saved_pth"
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         if config["cuda_devices"] is not None:
@@ -252,6 +252,7 @@ def main():
             'max_val_ET_dice': max_val_ET_dice,
             'max_val_AVG_dice': max_val_AVG_dice,
         }
+        os.makedirs(save_dir, exist_ok=True)
         torch.save(last_states, os.path.join(save_dir, 'latest_checkpoint.pth'))
 
         print("batch {0:d} finished, validation loss:{1:.4f}; TC:{2:.4f}, ET:{3:.4f}, AVG:{4:.4f}".format(i, val_loss,

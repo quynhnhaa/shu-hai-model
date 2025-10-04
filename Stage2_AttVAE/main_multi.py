@@ -98,7 +98,7 @@ config["image_shape"] = image_shape
 config["activation"] = activation
 config["input_shape"] = tuple([config["batch_size"]] + [config["nb_channels"]] + list(config["image_shape"]))
 config["result_path"] = os.path.join(config["base_path"], "models",  save_folder)   # save models and status files
-config["saved_model_file"] = config["result_path"] + pth_name
+config["saved_model_file"] = os.path.join(config["result_path"], pth_name) if pth_name else None
 config["segmentation_map_path"] = "../pred/" + model_list[0] + "/"
 config["model_list"] = model_list
 config["overwrite"] = True
@@ -154,11 +154,18 @@ def main():
     if not config["overwrite"] and config["saved_model_file"] is not None:
         if not os.path.exists(config["saved_model_file"]):
             raise Exception("Invalid model path!")
-        model, start_epoch, optimizer_resume = load_old_model(model, optimizer, saved_model_path=config["saved_model_file"])
-        parameters = model.parameters()
-        optimizer = optim.Adam(parameters,
-                               lr=optimizer_resume.param_groups[0]["lr"],
-                               weight_decay=optimizer_resume.param_groups[0]["weight_decay"])
+        # Load states exactly like Stage1: keep optimizer state and advance start_epoch
+        model, loaded_epoch, optimizer = load_old_model(model, optimizer, saved_model_path=config["saved_model_file"])    
+        start_epoch = loaded_epoch + 1
+        # Try loading best metrics from checkpoint for consistent logging
+        try:
+            _ckpt = torch.load(config["saved_model_file"], map_location='cpu')
+            max_val_TC_dice = _ckpt.get('max_val_TC_dice', 0.)
+            max_val_ET_dice = _ckpt.get('max_val_ET_dice', 0.)
+            max_val_AVG_dice = _ckpt.get('max_val_AVG_dice', 0.)
+            print("Resumed from epoch %d with best TC: %.4f ET: %.4f AVG: %.4f" % (loaded_epoch, max_val_TC_dice, max_val_ET_dice, max_val_AVG_dice))
+        except Exception:
+            pass
 
     if config["cuda_devices"] is not None:
         model = model.cuda()
@@ -220,12 +227,33 @@ def main():
                 'epoch': i,
                 'state_dict': state_dict,
                 'optimizer': optimizer.state_dict(),
+                'max_val_TC_dice': max_val_TC_dice,
+                'max_val_ET_dice': max_val_ET_dice,
+                'max_val_AVG_dice': max_val_AVG_dice,
             }
             torch.save(states, save_states_path)
             save_model_path = os.path.join(save_dir, "best_model.pth")
             if os.path.exists(save_model_path):
                 os.system("rm "+ save_model_path)
             torch.save(model, save_model_path)
+        # Always save last checkpoint each epoch for resume capability
+        save_dir = config["result_path"]
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        if config["cuda_devices"] is not None:
+            last_state_dict = model.module.state_dict()
+        else:
+            last_state_dict = model.state_dict()
+        last_states = {
+            'epoch': i,
+            'state_dict': last_state_dict,
+            'optimizer': optimizer.state_dict(),
+            'max_val_TC_dice': max_val_TC_dice,
+            'max_val_ET_dice': max_val_ET_dice,
+            'max_val_AVG_dice': max_val_AVG_dice,
+        }
+        torch.save(last_states, os.path.join(save_dir, 'latest_checkpoint.pth'))
+
         print("batch {0:d} finished, validation loss:{1:.4f}; TC:{2:.4f}, ET:{3:.4f}, AVG:{4:.4f}".format(i, val_loss,
                                                                                             TC_dice, ET_dice, AVG_dice))
 

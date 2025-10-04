@@ -4,6 +4,7 @@ brats2020-training-data
 data_npy
 runs/
 models_stage1/
+models_stage2/
 count_parameters.py
 *.pth
 *.h5

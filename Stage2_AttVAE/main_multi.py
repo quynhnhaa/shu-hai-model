@@ -90,7 +90,7 @@ elif num_gpu == 2:
 elif num_gpu == 4:
     os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
-config["initial_learning_rate"] = 5e-5
+config["initial_learning_rate"] = 0.000048
 config["batch_size"] = batch_size
 config["validation_batch_size"] = batch_size
 config["model_name"] = "UNetVAE-bs{}".format(config["batch_size"])  # logger
@@ -128,6 +128,9 @@ def main():
                            lr=config["initial_learning_rate"],
                            weight_decay=config["L2_norm"])
     start_epoch = 1
+    max_val_TC_dice = 0.
+    max_val_ET_dice = 0.
+    max_val_AVG_dice = 0.
     if config["VAE_enable"]:
         loss_function = CombinedLoss(combine=config["combine"],
                                      k1=config["loss_k1_weight"], k2=config["loss_k2_weight"])
@@ -151,18 +154,22 @@ def main():
     train_logger = Logger(model_name=config["model_name"] + '.h5',
                           header=['epoch', 'loss', 'wt-dice', 'tc-dice', 'et-dice', 'lr'])
 
+    # Variable to store scheduler state for resuming
+    scheduler_state = None
+    
     if not config["overwrite"] and config["saved_model_file"] is not None:
         if not os.path.exists(config["saved_model_file"]):
             raise Exception("Invalid model path!")
         # Load states exactly like Stage1: keep optimizer state and advance start_epoch
         model, loaded_epoch, optimizer = load_old_model(model, optimizer, saved_model_path=config["saved_model_file"])    
         start_epoch = loaded_epoch + 1
-        # Try loading best metrics from checkpoint for consistent logging
+        # Try loading best metrics and scheduler state from checkpoint for consistent logging
         try:
             _ckpt = torch.load(config["saved_model_file"], map_location='cpu')
             max_val_TC_dice = _ckpt.get('max_val_TC_dice', 0.)
             max_val_ET_dice = _ckpt.get('max_val_ET_dice', 0.)
             max_val_AVG_dice = _ckpt.get('max_val_AVG_dice', 0.)
+            scheduler_state = _ckpt.get('scheduler', None)
             print("Resumed from epoch %d with best TC: %.4f ET: %.4f AVG: %.4f" % (loaded_epoch, max_val_TC_dice, max_val_ET_dice, max_val_AVG_dice))
         except Exception:
             pass
@@ -175,12 +182,19 @@ def main():
                 if isinstance(v, torch.Tensor):
                     state[k] = v.cuda()
 
-    scheduler = lr_scheduler.LambdaLR(optimizer=optimizer, lr_lambda=poly_lr_scheduler_multi)
+    # Create scheduler with proper last_epoch for resume
+    scheduler = lr_scheduler.LambdaLR(optimizer=optimizer, 
+                                      lr_lambda=poly_lr_scheduler_multi,
+                                      last_epoch=start_epoch-1)
+    
+    # Load scheduler state if resuming from checkpoint
+    if scheduler_state is not None:
+        scheduler.load_state_dict(scheduler_state)
+        print("Loaded scheduler state from checkpoint")
+    
     # scheduler = lr_scheduler.LambdaLR(optimizer=optimizer, lr_lambda=poly_lr_scheduler)
 
-    max_val_TC_dice = 0.
-    max_val_ET_dice = 0.
-    max_val_AVG_dice = 0.
+
     for i in range(start_epoch, config["epochs"]):
         train_epoch(epoch=i, 
                     data_set=training_data, 
@@ -227,6 +241,7 @@ def main():
                 'epoch': i,
                 'state_dict': state_dict,
                 'optimizer': optimizer.state_dict(),
+                'scheduler': scheduler.state_dict(),
                 'max_val_TC_dice': max_val_TC_dice,
                 'max_val_ET_dice': max_val_ET_dice,
                 'max_val_AVG_dice': max_val_AVG_dice,
@@ -248,6 +263,7 @@ def main():
             'epoch': i,
             'state_dict': last_state_dict,
             'optimizer': optimizer.state_dict(),
+            'scheduler': scheduler.state_dict(),
             'max_val_TC_dice': max_val_TC_dice,
             'max_val_ET_dice': max_val_ET_dice,
             'max_val_AVG_dice': max_val_AVG_dice,

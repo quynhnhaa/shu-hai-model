@@ -196,8 +196,9 @@ def predict(name_list, model):
                                                         x_start: x_start+patch_size] = preds_array[i]
 
                 outp1_npy = outp1_npy.swapaxes(-3, -1)  # convert channel first (SimpleTIK) to channel last (Nibabel)
-
-                affine = nib.load(os.path.join(config["test_path"], patient_filename, patient_filename + '_t1.nii')).affine
+                
+                # affine = nib.load(os.path.join(config["test_path"], patient_filename, patient_filename + '_t1.nii')).affine
+                affine = nib.load(os.path.join("/kaggle/input/data-npy", patient_filename, patient_filename + '_t1.nii')).affine
                 output_image = nib.Nifti1Image(outp1_npy, affine)
                 os.makedirs(config["prediction_dir"], exist_ok=True)
                 output_image.to_filename(os.path.join(config["prediction_dir"], patient_filename + '.nii.gz'))

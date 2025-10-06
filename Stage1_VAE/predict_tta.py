@@ -171,6 +171,9 @@ def evaluate(name_list, model):
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
 
+    # Set test_patients for the prediction dataset, which uses phase='test'
+    config["test_patients"] = name_list
+
     tta_idx_limit = 8 if tta else 1
     for tta_idx in range(tta_idx_limit):
         config["tta_idx"] = tta_idx
@@ -193,13 +196,13 @@ def evaluate(name_list, model):
                 file_idx = idx * config["batch_size"] + i
                 if file_idx < len(name_list):
                     patient_filename = name_list[file_idx]
-                    np.save(os.path.join(tmp_dir, f"flip_{tta_idx}_{patient_filename}.npy"), output_array[i])
+                    np.save(os.path.join(tmp_dir, f"flip_{{tta_idx}}_{patient_filename}.npy"), output_array[i])
 
     print("\n-- Aggregating TTA results and evaluating --")
     for patient_filename in tqdm(name_list):
         flip_arrays = []
         for tta_idx in range(tta_idx_limit):
-            flip_path = os.path.join(tmp_dir, f"flip_{tta_idx}_{patient_filename}.npy")
+            flip_path = os.path.join(tmp_dir, f"flip_{{tta_idx}}_{patient_filename}.npy")
             if os.path.exists(flip_path):
                 flip_arrays.append(np.load(flip_path))
         

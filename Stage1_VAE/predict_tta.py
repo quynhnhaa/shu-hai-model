@@ -253,7 +253,7 @@ if __name__ == "__main__":
     #     if x not in val_list:
     #         val_list.append(x)
     with open('../test_list.txt', 'r') as f:
-        tr_list = f.read().splitlines()
+        val_list = f.read().splitlines()
     # Still load name_mapping.csv from TrainingData for reference/logging consistency
     mapping_file_path = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TrainingData", "name_mapping.csv")
     name_mapping = read_csv(mapping_file_path)

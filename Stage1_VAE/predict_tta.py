@@ -2,19 +2,21 @@
 @author: Chenggang
 @github: https://github.com/MissShihongHowRU
 @time: 2020-09-09 22:04
-Modified to perform evaluation with TTA.
+Modified to perform evaluation with TTA, keeping original config structure.
 """
 import sys
 sys.path.append(".")
 
 import os
 import numpy as np
+import nibabel as nib
 import argparse
 import torch
 from tqdm import tqdm
 from dataset import BratsDataset
 from config import config
-from utils import combine_labels_predicting
+from pandas import read_csv
+from utils import combine_labels_predicting, dim_recovery
 from scipy.spatial.distance import cdist
 
 def init_args():
@@ -22,9 +24,15 @@ def init_args():
     parser.add_argument('-g', '--num_gpu', type=int, help='Can be 0, 1, 2, 4', default=1)
     parser.add_argument('-s', '--save_folder', type=str, help='The folder of the saved model', default='saved_pth')
     parser.add_argument('-f', '--checkpoint_file', type=str, help='name of the saved pth file', default='best_model.pth')
+    parser.add_argument('--train', type=bool, help='make prediction on training data', default=False)
+    parser.add_argument('--test', type=bool, help='make prediction on testing data', default=False)
+    parser.add_argument('--seglabel', type=int, help='whether to train the model with 1 or all 3 labels', default=0)
     parser.add_argument('-i', '--image_shape', type=int,  nargs='+', help='The shape of input tensor', default=[128, 192, 160])
     parser.add_argument('-t', '--tta', type=bool, help='Whether to implement test-time augmentation;', default=False)
     parser.add_argument('--model_path', type=str, default=None, help='Full path to the saved pth file')
+    parser.add_argument('--output_dir', type=str, default=None, help='Full path to the output directory for predictions')
+    parser.add_argument('--start', type=int, default=0, help='Start index for subsetting')
+    parser.add_argument('--end', type=int, default=None, help='End index for subsetting')
     return parser.parse_args()
 
 def dice_score(pred, target, smooth=1e-5):
@@ -59,6 +67,11 @@ else:
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(str(i) for i in range(num_gpu))
 
 config["batch_size"] = args.num_gpu if args.num_gpu > 0 else 1
+seglabel_idx = args.seglabel
+label_list = [None, "WT", "TC", "ET"]
+dice_list = [None, "dice_wt", "dice_tc", "dice_et"]
+seg_label = label_list[seglabel_idx]
+seg_dice = dice_list[seglabel_idx]
 config["image_shape"] = args.image_shape
 
 if args.model_path:
@@ -69,11 +82,25 @@ else:
     config["checkpoint_path"] = os.path.join(config["base_path"], "models", args.save_folder)
     config['saved_model_path'] = os.path.join(config["checkpoint_path"], config["checkpoint_file"])
 
+if args.output_dir:
+    config["prediction_dir"] = args.output_dir
+else:
+    config["prediction_dir"] = os.path.join(config["base_path"], "pred", config["checkpoint_file"].split(".pth")[0])
+
+config["load_from_data_parallel"] = True
+config["predict_from_train_data"] = args.train
+config["predict_from_test_data"] = args.test
+config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_ValidationData")
+if config["predict_from_test_data"]:
+    config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TestingData")
+if config["predict_from_train_data"]:
+    config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TrainingData")
+
 config["input_shape"] = tuple([config["batch_size"]] + [config["nb_channels"]] + list(config["image_shape"]))
 config["VAE_enable"] = False
-config["num_labels"] = 3
-config["load_from_data_parallel"] = True
-
+config["seg_label"] = seg_label
+config["num_labels"] = 1 if config["seg_label"] else 3
+config["seg_dice"] = seg_dice
 config["activation"] = "relu"
 if "sin" in config["checkpoint_file"]:
     config["activation"] = "sin"
@@ -136,7 +163,6 @@ def evaluate(name_list, model):
     dice_scores = {"wt": [], "tc": [], "et": []}
     hd95_scores = {"wt": [], "tc": [], "et": []}
 
-    # Create a dataset for validation to get the ground truth labels
     config["validation_patients"] = name_list
     label_dataset = BratsDataset(phase="validate", config=config)
     labels_dict = {label_dataset.patient_list[i]: label_dataset[i][1] for i in range(len(label_dataset))}
@@ -145,13 +171,12 @@ def evaluate(name_list, model):
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
 
-    # TTA Prediction Phase
     tta_idx_limit = 8 if tta else 1
     for tta_idx in range(tta_idx_limit):
         config["tta_idx"] = tta_idx
         if tta:
             print(f"-- Starting TTA flip index: {tta_idx} --")
-        # Use phase='test' for prediction dataset as it doesn't load labels, making it faster
+        
         pred_dataset = BratsDataset(phase="test", config=config)
         pred_loader = torch.utils.data.DataLoader(dataset=pred_dataset, batch_size=config["batch_size"], shuffle=False)
         
@@ -170,7 +195,6 @@ def evaluate(name_list, model):
                     patient_filename = name_list[file_idx]
                     np.save(os.path.join(tmp_dir, f"flip_{tta_idx}_{patient_filename}.npy"), output_array[i])
 
-    # Evaluation Phase
     print("\n-- Aggregating TTA results and evaluating --")
     for patient_filename in tqdm(name_list):
         flip_arrays = []
@@ -203,7 +227,6 @@ def evaluate(name_list, model):
 
     os.system("rm -r " + tmp_dir)
 
-    # Print Results
     print("\n--- Evaluation Results ---")
     for region in ["wt", "tc", "et"]:
         avg_dice = np.nanmean(dice_scores[region])
@@ -216,7 +239,6 @@ def evaluate(name_list, model):
 if __name__ == "__main__":
     model = init_model_from_states(config)
 
-    # Use test_list.txt for evaluation
     test_list_path = os.path.join(config["base_path"], 'test_list.txt')
     with open(test_list_path, 'r') as f:
         test_list = f.read().splitlines()

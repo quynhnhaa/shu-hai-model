@@ -246,6 +246,7 @@ def main():
     config["batch_size"] = args.batch_size
     config["image_shape"] = [128, 192, 160]  # Default shape
     config["input_shape"] = (args.batch_size, 4, 128, 192, 160)  # 4 channels for MRI modalities
+    config["activation"] = "relu"  # Default activation function
 
     # Model path logic
     if args.model_path:

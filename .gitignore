@@ -8,3 +8,4 @@ count_parameters.py
 *.pth
 *.h5
 run_epoch_51_ _probabilityMap/
+*.zip

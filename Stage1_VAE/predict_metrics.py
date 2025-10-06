@@ -161,8 +161,24 @@ def predict_and_evaluate(name_list, model, config, args):
             else:
                 input_data = imgs_npy
 
-            # Add batch dimension
+            # Ensure input has correct shape (4, D, H, W)
+            if len(input_data.shape) == 4:  # (4, D, H, W)
+                # Crop or pad to expected shape (128, 192, 160)
+                d, h, w = input_data.shape[1:]
+                target_shape = (128, 192, 160)
+
+                # Calculate crop coordinates for center crop
+                d_start = (d - target_shape[0]) // 2 if d > target_shape[0] else 0
+                h_start = (h - target_shape[1]) // 2 if h > target_shape[1] else 0
+                w_start = (w - target_shape[2]) // 2 if w > target_shape[2] else 0
+
+                input_data = input_data[:, d_start:d_start+target_shape[0],
+                                      h_start:h_start+target_shape[1],
+                                      w_start:w_start+target_shape[2]]
+
+            # Add batch dimension and ensure correct shape
             input_tensor = torch.from_numpy(input_data).float().unsqueeze(0)
+            print(f"Input tensor shape: {input_tensor.shape}")
 
             if args.num_gpu > 0:
                 input_tensor = input_tensor.cuda()

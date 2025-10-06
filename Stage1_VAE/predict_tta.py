@@ -76,6 +76,7 @@ else:
 # Logic for output path
 if args.output_dir:
     config["prediction_dir"] = args.output_dir
+    os.makedirs(config["prediction_dir"], exist_ok=True)
 else:
     # Keep old behavior
     config["prediction_dir"] = os.path.join(config["base_path"], "pred", config["checkpoint_file"].split(".pth")[0])
@@ -348,6 +349,15 @@ def predict(name_list, model):
         print(f"Hausdorff TC (95%):  {avg_metrics['hausdorff_tc']:.4f}")
         print(f"Hausdorff ET (95%):  {avg_metrics['hausdorff_et']:.4f}")
         print("="*60)
+        os.mkdir(config["prediction_dir"] + "/metrics", exist_ok=True)
+        with open(config["prediction_dir"] + "/metrics/metrics.txt", "w") as f:
+            f.write(f"Dice WT:  {avg_metrics['dice_wt']:.4f}\n")
+            f.write(f"Dice TC:  {avg_metrics['dice_tc']:.4f}\n")
+            f.write(f"Dice ET:  {avg_metrics['dice_et']:.4f}\n")
+            f.write(f"Hausdorff WT (95%):  {avg_metrics['hausdorff_wt']:.4f}\n")
+            f.write(f"Hausdorff TC (95%):  {avg_metrics['hausdorff_tc']:.4f}\n")
+            f.write(f"Hausdorff ET (95%):  {avg_metrics['hausdorff_et']:.4f}\n")
+
 
     os.system("rm -r " + tmp_dir)
 

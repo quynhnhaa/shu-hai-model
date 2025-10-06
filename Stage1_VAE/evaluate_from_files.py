@@ -8,7 +8,7 @@ from tqdm import tqdm
 from dataset import BratsDataset
 from config import config
 from utils import combine_labels_predicting
-from scipy.spatial.distance import cdist
+from scipy.spatial import KDTree
 
 def init_args():
     parser = argparse.ArgumentParser(description="Evaluate model predictions from saved .npy files.")
@@ -23,14 +23,26 @@ def dice_score(pred, target, smooth=1e-5):
     return (2. * intersection + smooth) / (union + smooth)
 
 def hausdorff_distance_95(pred, target):
+    if np.sum(pred) == 0 or np.sum(target) == 0:
+        return np.nan
+
     pred_points = np.argwhere(pred)
     target_points = np.argwhere(target)
+    
     if len(pred_points) == 0 or len(target_points) == 0:
         return np.nan
-    dist_pred_to_target = cdist(pred_points, target_points).min(axis=1)
+
+    # Use KDTree for memory-efficient nearest neighbor search
+    # Directed Hausdorff from pred to target
+    tree_target = KDTree(target_points)
+    dist_pred_to_target, _ = tree_target.query(pred_points, k=1)
     hd95_pred_to_target = np.percentile(dist_pred_to_target, 95)
-    dist_target_to_pred = cdist(target_points, pred_points).min(axis=1)
+
+    # Directed Hausdorff from target to pred
+    tree_pred = KDTree(pred_points)
+    dist_target_to_pred, _ = tree_pred.query(target_points, k=1)
     hd95_target_to_pred = np.percentile(dist_target_to_pred, 95)
+
     return max(hd95_pred_to_target, hd95_target_to_pred)
 
 def get_tumor_regions(segmentation):
@@ -53,14 +65,12 @@ def evaluate(args):
         patient_list = f.read().splitlines()
     print(f"Found {len(patient_list)} patients for evaluation in {os.path.basename(test_list_path)}")
 
-    # --- Load Ground Truth Labels ---
-    print("Loading ground truth labels...")
+    # --- Prepare Ground Truth Label Loader ---
+    print("Preparing ground truth label loader...")
     config["validation_patients"] = patient_list
     label_dataset = BratsDataset(phase="validate", config=config)
-    labels_dict = {label_dataset.patient_names[i]: label_dataset.patient_names[i] for i in range(len(label_dataset))}
-    # Fix for OOM: Create a name-to-index map instead of loading all labels
     patient_name_to_idx = {name: i for i, name in enumerate(label_dataset.patient_names)}
-    print("Label index map created.")
+    print("Label loader ready.")
 
     dice_scores = {"wt": [], "tc": [], "et": []}
     hd95_scores = {"wt": [], "tc": [], "et": []}

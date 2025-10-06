@@ -247,7 +247,9 @@ class PatchDataset(Dataset):
             if self.scale:
                 cur_image = random_scale(cur_image, brain_mask)
             imgs_npy[:-1] = cur_image
-        pred_map_with_imgs_npy = np.concatenate([pred_map, imgs_npy], axis=0)  # (3+4+1)
+        # Only use MRI modalities (4 channels), exclude the label (1 channel)
+        mri_modalities = imgs_npy[:-1]  # (4, D, H, W)
+        pred_map_with_imgs_npy = np.concatenate([pred_map, mri_modalities], axis=0)  # (3+4)
         # make patch:
         z_start = patch["z"]
         y_start = patch["y"]

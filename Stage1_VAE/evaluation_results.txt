@@ -1,0 +1,13 @@
+--- Evaluation Results ---
+Region: WT
+  Average Dice Score: 0.8835
+  Average 95% Hausdorff Distance: 4.3723
+------------------------
+Region: TC
+  Average Dice Score: 0.7925
+  Average 95% Hausdorff Distance: 5.6751
+------------------------
+Region: ET
+  Average Dice Score: 0.7554
+  Average 95% Hausdorff Distance: 4.8521
+------------------------

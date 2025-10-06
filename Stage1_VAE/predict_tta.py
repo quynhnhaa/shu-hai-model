@@ -16,8 +16,6 @@ from dataset import BratsDataset
 from config import config
 from pandas import read_csv
 from utils import combine_labels_predicting, dim_recovery
-from scipy.spatial.distance import directed_hausdorff
-import scipy.ndimage as ndimage
 
 def init_args():
 
@@ -76,7 +74,6 @@ else:
 # Logic for output path
 if args.output_dir:
     config["prediction_dir"] = args.output_dir
-    os.makedirs(config["prediction_dir"], exist_ok=True)
 else:
     # Keep old behavior
     config["prediction_dir"] = os.path.join(config["base_path"], "pred", config["checkpoint_file"].split(".pth")[0])
@@ -157,80 +154,6 @@ def test_time_flip_recovery(imgs_array, tta_idx):
         return imgs_array[:, :, ::-1, ::-1, ::-1]
 
 
-def calculate_hausdorff_distance(pred, gt, percentile=95):
-    """
-    Calculate Hausdorff distance (95th percentile) between prediction and ground truth
-    """
-    pred = pred > 0.5  # Binarize prediction
-    gt = gt > 0.5     # Binarize ground truth
-
-    if np.sum(pred) == 0 and np.sum(gt) == 0:
-        return 0.0
-    elif np.sum(pred) == 0 or np.sum(gt) == 0:
-        return np.inf
-
-    # Get coordinates of foreground voxels
-    pred_coords = np.argwhere(pred)
-    gt_coords = np.argwhere(gt)
-
-    if len(pred_coords) == 0 or len(gt_coords) == 0:
-        return np.inf
-
-    # Calculate directed Hausdorff distances
-    dist1 = directed_hausdorff(pred_coords, gt_coords)[0]
-    dist2 = directed_hausdorff(gt_coords, pred_coords)[0]
-
-    # Return the maximum of the two directed distances (standard Hausdorff)
-    hausdorff_dist = max(dist1, dist2)
-
-    return hausdorff_dist
-
-
-def calculate_metrics_for_patient(pred_array, gt_array):
-    """
-    Calculate Dice score and Hausdorff distance for WT, TC, ET
-    """
-    # Extract individual tumor regions from prediction and ground truth
-    # pred_array shape: (H, W, D) with values 0, 1, 2, 4
-    # gt_array shape: (H, W, D) with values 0, 1, 2, 4
-
-    # Whole Tumor (WT): labels 1, 2, 4
-    pred_wt = ((pred_array == 1) | (pred_array == 2) | (pred_array == 4))
-    gt_wt = ((gt_array == 1) | (gt_array == 2) | (gt_array == 4))
-
-    # Tumor Core (TC): labels 1, 4
-    pred_tc = ((pred_array == 1) | (pred_array == 4))
-    gt_tc = ((gt_array == 1) | (gt_array == 4))
-
-    # Enhancing Tumor (ET): label 4
-    pred_et = (pred_array == 4)
-    gt_et = (gt_array == 4)
-
-    metrics = {}
-
-    # Calculate Dice scores
-    metrics['dice_wt'] = dice_coefficient_single_label(pred_wt, gt_wt)
-    metrics['dice_tc'] = dice_coefficient_single_label(pred_tc, gt_tc)
-    metrics['dice_et'] = dice_coefficient_single_label(pred_et, gt_et)
-
-    # Calculate Hausdorff distances (95th percentile)
-    metrics['hausdorff_wt'] = calculate_hausdorff_distance(pred_wt, gt_wt)
-    metrics['hausdorff_tc'] = calculate_hausdorff_distance(pred_tc, gt_tc)
-    metrics['hausdorff_et'] = calculate_hausdorff_distance(pred_et, gt_et)
-
-    return metrics
-
-
-def dice_coefficient_single_label(y_pred, y_truth, eps=1e-8):
-    """
-    Calculate Dice coefficient for single label
-    """
-    intersection = np.sum(y_pred * y_truth) + eps / 2
-    union = np.sum(y_pred) + np.sum(y_truth) + eps
-    dice = 2 * intersection / union
-    return dice
-
-
 def predict(name_list, model):
 
     model.eval()
@@ -286,9 +209,6 @@ def predict(name_list, model):
         config["prediction_dir"] += "_testing"
     if not os.path.exists(config["prediction_dir"]):
         os.mkdir(config["prediction_dir"])
-    # Initialize metrics collection
-    all_metrics = []
-
     for patient_filename in name_list:
         flip_arrays = []
         for tta_idx in range(tta_idx_limit):
@@ -309,56 +229,6 @@ def predict(name_list, model):
             os.mkdir(propbsMap_dir)
         np.save(os.path.join(propbsMap_dir, patient_filename + ".npy"), probsMap_array)
 
-        # Calculate metrics for this patient
-        try:
-            # Load ground truth segmentation
-            seg_path = os.path.join('/kaggle/input/data-npy', patient_filename, patient_filename + '_seg.nii')
-            if os.path.exists(seg_path):
-                gt_nii = nib.load(seg_path)
-                gt_array = np.array(gt_nii.dataobj)
-
-                # Calculate metrics
-                patient_metrics = calculate_metrics_for_patient(preds_array, gt_array)
-                all_metrics.append(patient_metrics)
-
-                print(f"Patient {patient_filename}:")
-                print(f"  Dice WT: {patient_metrics['dice_wt']:.4f}, TC: {patient_metrics['dice_tc']:.4f}, ET: {patient_metrics['dice_et']:.4f}")
-                print(f"  Hausdorff WT: {patient_metrics['hausdorff_wt']:.4f}, TC: {patient_metrics['hausdorff_tc']:.4f}, ET: {patient_metrics['hausdorff_et']:.4f}")
-            else:
-                print(f"Warning: Ground truth not found for patient {patient_filename}")
-        except Exception as e:
-            print(f"Error calculating metrics for patient {patient_filename}: {str(e)}")
-
-    # Calculate and print average metrics
-    if all_metrics:
-        avg_metrics = {}
-        for key in all_metrics[0].keys():
-            values = [patient[key] for patient in all_metrics if patient[key] != np.inf]
-            if values:
-                avg_metrics[key] = np.mean(values)
-            else:
-                avg_metrics[key] = np.inf
-
-        print("\n" + "="*60)
-        print("AVERAGE METRICS:")
-        print("="*60)
-        print(f"Dice WT:  {avg_metrics['dice_wt']:.4f}")
-        print(f"Dice TC:  {avg_metrics['dice_tc']:.4f}")
-        print(f"Dice ET:  {avg_metrics['dice_et']:.4f}")
-        print(f"Hausdorff WT (95%):  {avg_metrics['hausdorff_wt']:.4f}")
-        print(f"Hausdorff TC (95%):  {avg_metrics['hausdorff_tc']:.4f}")
-        print(f"Hausdorff ET (95%):  {avg_metrics['hausdorff_et']:.4f}")
-        print("="*60)
-        os.mkdir(config["prediction_dir"] + "/metrics", exist_ok=True)
-        with open(config["prediction_dir"] + "/metrics/metrics.txt", "w") as f:
-            f.write(f"Dice WT:  {avg_metrics['dice_wt']:.4f}\n")
-            f.write(f"Dice TC:  {avg_metrics['dice_tc']:.4f}\n")
-            f.write(f"Dice ET:  {avg_metrics['dice_et']:.4f}\n")
-            f.write(f"Hausdorff WT (95%):  {avg_metrics['hausdorff_wt']:.4f}\n")
-            f.write(f"Hausdorff TC (95%):  {avg_metrics['hausdorff_tc']:.4f}\n")
-            f.write(f"Hausdorff ET (95%):  {avg_metrics['hausdorff_et']:.4f}\n")
-
-
     os.system("rm -r " + tmp_dir)
 
     
@@ -372,18 +242,16 @@ if __name__ == "__main__":
     #     val_list = name_mapping["BraTS20ID"].tolist()
     # else:
     # Build prediction list from train_list.txt and valid_list.txt for Stage2 input generation
-    # with open('../train_list.txt', 'r') as f:
-    #     tr_list = f.read().splitlines()
-    # with open('../valid_list.txt', 'r') as f:
-    #     val_names = f.read().splitlines()
-    # # Deduplicate while preserving order
-    # combined = tr_list + val_names
-    # val_list = []
-    # for x in combined:
-    #     if x not in val_list:
-    #         val_list.append(x)
-    with open('../test_list.txt', 'r') as f:
-        val_list = f.read().splitlines()
+    with open('../train_list.txt', 'r') as f:
+        tr_list = f.read().splitlines()
+    with open('../valid_list.txt', 'r') as f:
+        val_names = f.read().splitlines()
+    # Deduplicate while preserving order
+    combined = tr_list + val_names
+    val_list = []
+    for x in combined:
+        if x not in val_list:
+            val_list.append(x)
     # Still load name_mapping.csv from TrainingData for reference/logging consistency
     mapping_file_path = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TrainingData", "name_mapping.csv")
     name_mapping = read_csv(mapping_file_path)

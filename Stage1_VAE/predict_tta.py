@@ -88,7 +88,7 @@ else:
     config["prediction_dir"] = os.path.join(config["base_path"], "pred", config["checkpoint_file"].split(".pth")[0])
 
 config["load_from_data_parallel"] = True
-config["predict_from_train_data"] = args.train
+config["predict_from_train_data"] = True  # Always true for evaluation on labeled data (test_list.txt)
 config["predict_from_test_data"] = args.test
 config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_ValidationData")
 if config["predict_from_test_data"]:

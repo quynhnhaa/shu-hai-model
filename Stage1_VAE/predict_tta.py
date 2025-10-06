@@ -165,7 +165,7 @@ def evaluate(name_list, model):
 
     config["validation_patients"] = name_list
     label_dataset = BratsDataset(phase="validate", config=config)
-    labels_dict = {label_dataset.patient_list[i]: label_dataset[i][1] for i in range(len(label_dataset))}
+    labels_dict = {label_dataset.patient_names[i]: label_dataset[i][1] for i in range(len(label_dataset))}
 
     tmp_dir = "../tmp_result_{}".format(config["checkpoint_file"][:-4])
     if not os.path.exists(tmp_dir):

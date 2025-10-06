@@ -242,16 +242,18 @@ if __name__ == "__main__":
     #     val_list = name_mapping["BraTS20ID"].tolist()
     # else:
     # Build prediction list from train_list.txt and valid_list.txt for Stage2 input generation
-    with open('../train_list.txt', 'r') as f:
+    # with open('../train_list.txt', 'r') as f:
+    #     tr_list = f.read().splitlines()
+    # with open('../valid_list.txt', 'r') as f:
+    #     val_names = f.read().splitlines()
+    # # Deduplicate while preserving order
+    # combined = tr_list + val_names
+    # val_list = []
+    # for x in combined:
+    #     if x not in val_list:
+    #         val_list.append(x)
+    with open('../test_list.txt', 'r') as f:
         tr_list = f.read().splitlines()
-    with open('../valid_list.txt', 'r') as f:
-        val_names = f.read().splitlines()
-    # Deduplicate while preserving order
-    combined = tr_list + val_names
-    val_list = []
-    for x in combined:
-        if x not in val_list:
-            val_list.append(x)
     # Still load name_mapping.csv from TrainingData for reference/logging consistency
     mapping_file_path = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TrainingData", "name_mapping.csv")
     name_mapping = read_csv(mapping_file_path)

@@ -268,10 +268,7 @@ class PatchDataset(Dataset):
             inputs_with_label = cur_patch.copy()
 
         elif self.phase == "test":
-            if self.config["predict_from_train_data"]:
-                inputs = cur_patch[:-1]
-            else:
-                inputs = cur_patch.copy()  # cropped npy without labels （3+4）
+            inputs = cur_patch.copy()  # (7, patch_size, patch_size, patch_size)
             return np.array(inputs), patch
 
         if self.phase == "validate" or self.phase == "train" or self.phase == "evaluation":

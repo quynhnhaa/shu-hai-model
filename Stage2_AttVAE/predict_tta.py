@@ -100,7 +100,7 @@ def init_model_from_states(config):
         if num_gpu > 0:
             model = torch.nn.DataParallel(model)   # multi-gpu inference
         model = model.cuda()
-    checkpoint = torch.load(config['saved_model_path'], map_location='cpu')
+    checkpoint = torch.load(config['saved_model_path'], map_location='cpu', weights_only=False)
     state_dict = checkpoint["state_dict"]
     if not config["load_from_data_parallel"]:
         model.load_state_dict(state_dict)

@@ -62,7 +62,7 @@ if config["predict_from_test_data"]:
 config["image_shape"] = image_shape
 config["checkpoint_file"] = args.checkpoint_file
 config["segmentation_map_path"] = os.path.join(config["base_path"], "pred", segmentation_map_path)
-config["checkpoint_path"] = os.path.join(config["base_path"], "model", args.save_folder)
+config["checkpoint_path"] = os.path.join(config["base_path"], "models", args.save_folder)
 config['saved_model_path'] = os.path.join(config["checkpoint_path"], config["checkpoint_file"])
 # config["prediction_dir"] = os.path.abspath("./prediction/")
 config["prediction_dir"] = os.path.join(config["base_path"], "pred_stage2", config["checkpoint_file"].split(".pth")[0])

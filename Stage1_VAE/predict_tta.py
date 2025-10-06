@@ -214,7 +214,7 @@ def evaluate(name_list, model):
         pred_combined = combine_labels_predicting(preds_binary)
 
         label_tensor = labels_dict[patient_filename]
-        label_array = label_tensor.numpy().squeeze()
+        label_array = label_tensor.squeeze()
         label_combined = combine_labels_predicting(label_array)
 
         pred_wt, pred_tc, pred_et = get_tumor_regions(pred_combined)

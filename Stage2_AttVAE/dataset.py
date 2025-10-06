@@ -224,7 +224,7 @@ class PatchDataset(Dataset):
         patch = self.preprocessor.preprocessing(patient)
         self.file_path = os.path.join(self.data_path, patient + ".npy")
         if self.phase == "test":
-            self.file_path = os.path.join(self.test_path, 'npy', patient + ".npy")
+            self.file_path = os.path.join(self.test_path, patient + ".npy")
         imgs_npy = np.load(self.file_path)
         file_path_pred_map = os.path.join(self.stage1_output_path, patient + ".nii.gz")
         pred_map = read_stik_to_nparray(file_path_pred_map)

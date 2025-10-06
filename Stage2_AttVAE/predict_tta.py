@@ -217,8 +217,8 @@ if __name__ == "__main__":
         name_mapping = read_csv(mapping_file_path)
         val_list = name_mapping["BraTS20ID"].tolist()
     else:
-        mapping_file_path = os.path.join(config["test_path"], "name_mapping.csv")
-        name_mapping = read_csv('/kaggle/working/shu-hai-model/data/MICCAI_BraTS2020_TrainingData')
+        mapping_file_path = os.path.join('/kaggle/working/shu-hai-model/data/MICCAI_BraTS2020_TrainingData', "name_mapping.csv")
+        name_mapping = read_csv(mapping_file_path)
         # name_mapping = read_csv(mapping_file_path)
         val_list = name_mapping["BraTS_2020_subject_ID"].tolist()
 

@@ -23,12 +23,14 @@ def init_args():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-g', '--num_gpu', type=int, help='Can be 0, 1, 2, 4', default=2)
-    parser.add_argument('-s', '--save_folder', type=str, help='The folder of the saved model', default='saved_pth')
-    parser.add_argument('-f', '--checkpoint_file', type=str, help='name of the saved pth file', default='')
-    parser.add_argument('-m', '--map_path', type=str, help='The folder including segmentation map for predicting', default='nml4_lr_loss_crop_[214]_190_0.1633_0.9106_0.8493')
-    parser.add_argument('--test', type=bool, help='make prediction on testing data', default=False)
-    parser.add_argument('--seglabel', type=int, help='whether to train the model with 1 or all 3 labels', default=0)
-    parser.add_argument('-t', '--tta', type=bool, help='Whether to implement test-time augmentation;', default=False)
+    parser.add_argument('--test', action='store_true', help='Flag to make prediction on testing data')
+    parser.add_argument('-t', '--tta', action='store_true', help='Flag to implement test-time augmentation')
+
+    # New, explicit path arguments
+    parser.add_argument('--model_path', type=str, required=True, help='Full path to the saved .pth model file')
+    parser.add_argument('--stage1_dir', type=str, required=True, help='Path to the folder containing stage 1 predictions')
+    parser.add_argument('--output_dir', type=str, required=True, help='Path to the folder to save final predictions')
+    parser.add_argument('--data_dir', type=str, required=True, help='Path to the BraTS data directory (e.g., MICCAI_BraTS2020_ValidationData)')
 
     return parser.parse_args()
 
@@ -36,7 +38,6 @@ def init_args():
 args = init_args()
 num_gpu = args.num_gpu
 tta = args.tta
-segmentation_map_path = args.map_path
 config["predict_from_test_data"] = args.test
 config["cuda_devices"] = True
 if num_gpu == 0:
@@ -48,28 +49,23 @@ elif num_gpu == 2:
 elif num_gpu == 4:
     os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 config["batch_size"] = args.num_gpu
-seglabel_idx = args.seglabel
-label_list = [None, "WT", "TC", "ET"]   # None represents using all 3 labels
-dice_list = [None, "dice_wt", "dice_tc", "dice_et"]
-seg_label = label_list[seglabel_idx]  # used for data generation
-seg_dice = dice_list[seglabel_idx]  # used for dice calculation
+
+# These are no longer needed as we use direct paths
+seg_label = None
+seg_dice = None
 
 patch_size = 128
 image_shape = tuple([patch_size] * 3)
-if config["predict_from_test_data"]:
-    segmentation_map_path += "_testing"
 
+# Set paths directly from arguments
 config["image_shape"] = image_shape
-config["checkpoint_file"] = args.checkpoint_file
-config["segmentation_map_path"] = os.path.join(config["base_path"], "pred", segmentation_map_path)
-config["checkpoint_path"] = os.path.join(config["base_path"], "models", args.save_folder)
-config['saved_model_path'] = os.path.join(config["checkpoint_path"], config["checkpoint_file"])
-# config["prediction_dir"] = os.path.abspath("./prediction/")
-config["prediction_dir"] = os.path.join(config["base_path"], "pred_stage2", config["checkpoint_file"].split(".pth")[0])
-config["load_from_data_parallel"] = True  # Load model trained on multi-gpu to predict on single gpu.
-config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_ValidationData")
-if config["predict_from_test_data"]:
-    config["test_path"] = os.path.join(config["base_path"], "data", "MICCAI_BraTS2020_TestingData")
+config["checkpoint_file"] = os.path.basename(args.model_path)
+config["segmentation_map_path"] = args.stage1_dir
+config['saved_model_path'] = args.model_path
+config["prediction_dir"] = args.output_dir
+config["load_from_data_parallel"] = True
+config["test_path"] = args.data_dir
+
 config["input_shape"] = tuple([config["batch_size"]] + [config["nb_channels"]] + list(config["image_shape"]))
 config["VAE_enable"] = False
 config["seg_label"] = seg_label                             # used for data generation
@@ -146,13 +142,13 @@ def predict(name_list, model):
     config["test_patients"] = name_list
     # config["tta_idx"] = 0   # 0 indices no test-time augmentation;
 
-    # config["prediction_dir"] += "_190ep"   # indicate which outp1 the prediction is based on.
-    # config["prediction_dir"] += "_254ep"   # indicate which outp1 the prediction is based on.
-    config["prediction_dir"] += "_289ep"   # indicate which outp1 the prediction is based on.
+    # The following lines are now handled by the --output_dir argument
+    # # config["prediction_dir"] += "_190ep"   # indicate which outp1 the prediction is based on.
+    # # config["prediction_dir"] += "_254ep"   # indicate which outp1 the prediction is based on.
+    # # config["prediction_dir"] += "_289ep"   # indicate which outp1 the prediction is based on.
     if config["predict_from_test_data"]:
         config["prediction_dir"] += "_testing"
-    if not os.path.exists(config["prediction_dir"]):
-        os.mkdir(config["prediction_dir"])
+    os.makedirs(config["prediction_dir"], exist_ok=True)
 
     preprocessor = stage2net_preprocessor(config, patch_size=128, overlap=112)
     data_set = PatchDataset(phase="test", config=config, preprocessor=preprocessor)
@@ -202,12 +198,10 @@ def predict(name_list, model):
 
                 affine = nib.load(os.path.join(config["test_path"], patient_filename, patient_filename + '_t1.nii.gz')).affine
                 output_image = nib.Nifti1Image(outp1_npy, affine)
-                if not os.path.exists(config["prediction_dir"]):
-                    os.mkdir(config["prediction_dir"])
+                os.makedirs(config["prediction_dir"], exist_ok=True)
                 output_image.to_filename(os.path.join(config["prediction_dir"], patient_filename + '.nii.gz'))
                 propbsMap_dir = config["prediction_dir"] + "_probabilityMap"
-                if not os.path.exists(propbsMap_dir):
-                    os.mkdir(propbsMap_dir)
+                os.makedirs(propbsMap_dir, exist_ok=True)
                 np.save(os.path.join(propbsMap_dir, patient_filename + ".npy"), probsMap_array[i])
                 patch_i["patient"] = patient_filename
                 str_js = json.dumps(patch_i) + "\n"    # TypeError: Object of type Tensor is not JSON serializable
@@ -223,8 +217,9 @@ if __name__ == "__main__":
         name_mapping = read_csv(mapping_file_path)
         val_list = name_mapping["BraTS20ID"].tolist()
     else:
-        mapping_file_path = os.path.join(config["test_path"], "name_mapping_validation_data.csv")
-        name_mapping = read_csv(mapping_file_path)
+        mapping_file_path = os.path.join(config["test_path"], "name_mapping.csv")
+        name_mapping = read_csv('/kaggle/working/shu-hai-model/data/MICCAI_BraTS2020_TrainingData')
+        # name_mapping = read_csv(mapping_file_path)
         val_list = name_mapping["BraTS_2020_subject_ID"].tolist()
 
     predict(val_list, model)

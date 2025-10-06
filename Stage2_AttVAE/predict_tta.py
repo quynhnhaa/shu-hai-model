@@ -31,6 +31,7 @@ def init_args():
     parser.add_argument('--stage1_dir', type=str, required=True, help='Path to the folder containing stage 1 predictions')
     parser.add_argument('--output_dir', type=str, required=True, help='Path to the folder to save final predictions')
     parser.add_argument('--data_dir', type=str, required=True, help='Path to the BraTS data directory (e.g., MICCAI_BraTS2020_ValidationData)')
+    parser.add_argument('--patient_list_txt', type=str, default=None, help='Path to a .txt file containing a list of patient IDs to predict.')
 
     return parser.parse_args()
 
@@ -212,14 +213,23 @@ def predict(name_list, model):
 if __name__ == "__main__":
 
     model = init_model_from_states(config)
-    if config["predict_from_test_data"]:
-        mapping_file_path = os.path.join(config["test_path"], "survival_evaluation.csv")
-        name_mapping = read_csv(mapping_file_path)
-        val_list = name_mapping["BraTS20ID"].tolist()
+    
+    val_list = []
+    if args.patient_list_txt:
+        print(f"Loading patient list from: {args.patient_list_txt}")
+        with open(args.patient_list_txt, 'r') as f:
+            for line in f:
+                val_list.append(line.strip())
     else:
-        mapping_file_path = os.path.join('/kaggle/working/shu-hai-model/data/MICCAI_BraTS2020_TrainingData', "name_mapping.csv")
-        name_mapping = read_csv(mapping_file_path)
-        # name_mapping = read_csv(mapping_file_path)
-        val_list = name_mapping["BraTS_2020_subject_ID"].tolist()
+        print("Loading patient list from default CSV files...")
+        if config["predict_from_test_data"]:
+            mapping_file_path = os.path.join(config["test_path"], "survival_evaluation.csv")
+            name_mapping = read_csv(mapping_file_path)
+            val_list = name_mapping["BraTS20ID"].tolist()
+        else:
+            mapping_file_path = os.path.join(config["test_path"], "name_mapping_validation_data.csv")
+            name_mapping = read_csv(mapping_file_path)
+            val_list = name_mapping["BraTS_2020_subject_ID"].tolist()
 
+    print(f"Found {len(val_list)} patients to predict.")
     predict(val_list, model)
